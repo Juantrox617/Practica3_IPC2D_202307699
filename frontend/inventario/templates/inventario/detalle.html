@@ -1,0 +1,46 @@
+{% extends 'inventario/base.html' %}
+
+{% block title %}Detalle del Producto - Sistema de Inventario{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h2 style="color: #667eea;">👁️ Detalles del Producto</h2>
+    <a href="{% url 'listar_productos' %}" class="btn btn-primary">⬅️ Volver</a>
+</div>
+
+<div class="card">
+    <h3>{{ producto.nombre }}</h3>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+        <div>
+            <p><strong>ID:</strong> {{ producto.id }}</p>
+            <p><strong>Categoría:</strong> {{ producto.categoria }}</p>
+            <p><strong>Precio:</strong> Q{{ producto.precio }}</p>
+        </div>
+        <div>
+            <p><strong>Stock:</strong> 
+                {% if producto.stock <= 10 %}
+                <span style="color: red; font-weight: bold;">⚠️ {{ producto.stock }} unidades (Stock Bajo)</span>
+                {% else %}
+                {{ producto.stock }} unidades
+                {% endif %}
+            </p>
+            <p><strong>Fecha de Vencimiento:</strong> {{ producto.fecha_vencimiento|default:"No especificada" }}</p>
+        </div>
+    </div>
+    
+    <div style="margin-top: 20px;">
+        <p><strong>Descripción:</strong></p>
+        <p style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-top: 10px;">
+            {{ producto.descripcion }}
+        </p>
+    </div>
+    
+    <div style="display: flex; gap: 10px; margin-top: 30px;">
+        <a href="{% url 'editar_producto' producto.id %}" class="btn btn-warning">✏️ Editar</a>
+        <a href="{% url 'eliminar_producto' producto.id %}" 
+           class="btn btn-danger" 
+           onclick="return confirm('¿Estás seguro de eliminar este producto?')">🗑️ Eliminar</a>
+    </div>
+</div>
+{% endblock %}

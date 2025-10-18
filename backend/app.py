@@ -1,19 +1,13 @@
-# Backend Flask - API REST para gestión de productos
-# Práctica 3 - Sistema de Gestión de Inventario
-# Curso: Introducción a la Programación y Computación 2
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import json
 import os
 
 app = Flask(__name__)
-CORS(app)  # Permitir peticiones desde Django
+CORS(app)
 
-# Archivo JSON para almacenar los productos
 INVENTARIO_FILE = 'inventario.json'
 
-# Función para leer el inventario desde el archivo JSON
 def leer_inventario():
     if not os.path.exists(INVENTARIO_FILE):
         return []
@@ -23,12 +17,10 @@ def leer_inventario():
     except json.JSONDecodeError:
         return []
 
-# Función para guardar el inventario en el archivo JSON
 def guardar_inventario(productos):
     with open(INVENTARIO_FILE, 'w', encoding='utf-8') as file:
         json.dump(productos, file, ensure_ascii=False, indent=4)
 
-# Ruta de prueba
 @app.route('/', methods=['GET'])
 def home():
     return jsonify({
@@ -42,6 +34,129 @@ def home():
             'DELETE /productos/<id>': 'Eliminar un producto'
         }
     }), 200
+
+@app.route('/productos', methods=['GET'])
+def obtener_productos():
+    try:
+        productos = leer_inventario()
+        return jsonify(productos), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/productos/<int:producto_id>', methods=['GET'])
+def obtener_producto(producto_id):
+    try:
+        productos = leer_inventario()
+        producto = next((p for p in productos if p['id'] == producto_id), None)
+        
+        if producto:
+            return jsonify(producto), 200
+        else:
+            return jsonify({'error': 'Producto no encontrado'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/productos', methods=['POST'])
+def crear_producto():
+    try:
+        datos = request.get_json()
+        
+        campos_requeridos = ['nombre', 'categoria', 'descripcion', 'precio', 'stock']
+        for campo in campos_requeridos:
+            if campo not in datos or not datos[campo]:
+                return jsonify({'error': f'El campo {campo} es requerido'}), 400
+        
+        try:
+            precio = float(datos['precio'])
+            stock = int(datos['stock'])
+            if precio < 0 or stock < 0:
+                return jsonify({'error': 'El precio y stock deben ser valores positivos'}), 400
+        except ValueError:
+            return jsonify({'error': 'Precio y stock deben ser valores numéricos'}), 400
+        
+        productos = leer_inventario()
+        nuevo_id = max([p['id'] for p in productos], default=0) + 1
+        
+        nuevo_producto = {
+            'id': nuevo_id,
+            'nombre': datos['nombre'].strip(),
+            'categoria': datos['categoria'].strip(),
+            'descripcion': datos['descripcion'].strip(),
+            'precio': precio,
+            'stock': stock,
+            'fecha_vencimiento': datos.get('fecha_vencimiento', '').strip()
+        }
+        
+        productos.append(nuevo_producto)
+        guardar_inventario(productos)
+        
+        return jsonify({'mensaje': 'Producto creado exitosamente', 'producto': nuevo_producto}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/productos/<int:producto_id>', methods=['PUT'])
+def actualizar_producto(producto_id):
+    try:
+        datos = request.get_json()
+        productos = leer_inventario()
+        
+        indice = next((i for i, p in enumerate(productos) if p['id'] == producto_id), None)
+        
+        if indice is None:
+            return jsonify({'error': 'Producto no encontrado'}), 404
+        
+        if 'precio' in datos:
+            try:
+                precio = float(datos['precio'])
+                if precio < 0:
+                    return jsonify({'error': 'El precio debe ser un valor positivo'}), 400
+                datos['precio'] = precio
+            except ValueError:
+                return jsonify({'error': 'El precio debe ser un valor numérico'}), 400
+        
+        if 'stock' in datos:
+            try:
+                stock = int(datos['stock'])
+                if stock < 0:
+                    return jsonify({'error': 'El stock debe ser un valor positivo'}), 400
+                datos['stock'] = stock
+            except ValueError:
+                return jsonify({'error': 'El stock debe ser un valor numérico'}), 400
+        
+        if 'nombre' in datos:
+            productos[indice]['nombre'] = datos['nombre'].strip()
+        if 'categoria' in datos:
+            productos[indice]['categoria'] = datos['categoria'].strip()
+        if 'descripcion' in datos:
+            productos[indice]['descripcion'] = datos['descripcion'].strip()
+        if 'precio' in datos:
+            productos[indice]['precio'] = datos['precio']
+        if 'stock' in datos:
+            productos[indice]['stock'] = datos['stock']
+        if 'fecha_vencimiento' in datos:
+            productos[indice]['fecha_vencimiento'] = datos['fecha_vencimiento'].strip()
+        
+        guardar_inventario(productos)
+        
+        return jsonify({'mensaje': 'Producto actualizado exitosamente', 'producto': productos[indice]}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/productos/<int:producto_id>', methods=['DELETE'])
+def eliminar_producto(producto_id):
+    try:
+        productos = leer_inventario()
+        producto = next((p for p in productos if p['id'] == producto_id), None)
+        
+        if producto is None:
+            return jsonify({'error': 'Producto no encontrado'}), 404
+        
+        productos = [p for p in productos if p['id'] != producto_id]
+        guardar_inventario(productos)
+        
+        return jsonify({'mensaje': 'Producto eliminado exitosamente', 'producto': producto}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
